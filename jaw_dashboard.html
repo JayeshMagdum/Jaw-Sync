@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Jaw Motor Control Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: #0d0d12;
+    color: #e4e4ef;
+    min-height: 100vh;
+    padding: 28px 20px;
+  }
+  .page-header {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 28px;
+  }
+  .page-header h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.3px; }
+  .badge {
+    font-size: 11px; font-weight: 600; padding: 3px 9px;
+    border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .badge-live { background: #1a3a2a; color: #4ade80; border: 1px solid #2a5a3a; }
+  .badge-mock { background: #3a2a10; color: #f59e0b; border: 1px solid #5a3a10; }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 980px; }
+  .card {
+    background: #16161e;
+    border: 1px solid #252530;
+    border-radius: 14px;
+    padding: 20px 22px;
+  }
+  .card.full { grid-column: 1 / -1; }
+  .card h2 {
+    font-size: 13px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.8px; color: #888; margin-bottom: 18px;
+  }
+
+  /* Position slider */
+  .big-slider-wrap { position: relative; margin-bottom: 8px; }
+  .big-slider {
+    -webkit-appearance: none; width: 100%; height: 8px;
+    border-radius: 4px; outline: none; cursor: pointer;
+    background: linear-gradient(to right, #4ea1ff 0%, #4ea1ff var(--pct, 50%), #2a2a3a var(--pct, 50%), #2a2a3a 100%);
+  }
+  .big-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 22px; height: 22px;
+    border-radius: 50%; background: #fff; border: 3px solid #4ea1ff;
+    box-shadow: 0 2px 8px rgba(78,161,255,0.5); cursor: pointer;
+  }
+  .slider-labels { display: flex; justify-content: space-between; font-size: 11px; color: #555; }
+
+  .row { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+  .lbl { font-size: 13px; color: #888; min-width: 90px; flex-shrink: 0; }
+  .val-display {
+    font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums;
+    color: #4ea1ff; min-width: 60px; text-align: right;
+  }
+
+  /* Number inputs */
+  .num-input-wrap { display: flex; align-items: center; gap: 6px; }
+  input[type=number] {
+    width: 100px; background: #1e1e2a; color: #eee;
+    border: 1px solid #333; padding: 7px 10px;
+    border-radius: 8px; font-size: 14px; font-family: inherit;
+  }
+  input[type=number]:focus { outline: 2px solid #4ea1ff; border-color: transparent; }
+
+  /* Speed slider (compact) */
+  input[type=range] {
+    -webkit-appearance: none; flex: 1; height: 5px;
+    border-radius: 3px; background: #2a2a3a; outline: none; cursor: pointer;
+    accent-color: #4ea1ff;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 16px; height: 16px;
+    border-radius: 50%; background: #4ea1ff; cursor: pointer;
+  }
+
+  /* Buttons */
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  button {
+    background: #1e1e2a; color: #ddd; border: 1px solid #333;
+    padding: 7px 14px; border-radius: 8px; cursor: pointer;
+    font-size: 13px; font-family: inherit;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  button:hover { background: #25253a; border-color: #4ea1ff; }
+  button.primary { background: #1a3a6a; border-color: #2a5fa8; color: #7fc4ff; }
+  button.primary:hover { background: #1e4580; }
+  button.success { background: #1a3a2a; border-color: #2a5a3a; color: #4ade80; }
+  button.success:hover { background: #1e4a30; }
+  button.danger { background: #3a1a1a; border-color: #5a2a2a; color: #f87171; }
+  button.danger:hover { background: #4a1a1a; }
+  button:disabled { opacity: 0.35; cursor: default; }
+
+  /* Calibration rows */
+  .calib-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid #1e1e2a;
+  }
+  .calib-row:last-child { border-bottom: none; }
+  .calib-label { font-size: 12px; color: #777; width: 80px; flex-shrink: 0; }
+  .calib-row input[type=number] { width: 90px; }
+  .calib-val { font-size: 12px; color: #555; font-variant-numeric: tabular-nums; min-width: 50px; }
+
+  /* Live pos indicator */
+  .live-pos-bar {
+    height: 6px; border-radius: 3px;
+    background: #1e1e2a; position: relative; margin-top: 12px;
+  }
+  .live-pos-fill {
+    height: 100%; border-radius: 3px;
+    background: linear-gradient(90deg, #4ade80, #4ea1ff);
+    transition: width 0.15s;
+  }
+
+  /* Test jaw buttons */
+  .jaw-test-wrap { display: flex; gap: 10px; align-items: center; margin-top: 14px; }
+  .jaw-amp-slider { flex: 1; }
+
+  /* Speak section */
+  textarea {
+    width: 100%; background: #1a1a24; color: #eee; border: 1px solid #333;
+    border-radius: 8px; padding: 10px; font-family: inherit; font-size: 14px;
+    resize: vertical; min-height: 80px; margin-top: 10px;
+  }
+  textarea:focus { outline: 2px solid #4ea1ff; border-color: transparent; }
+  select {
+    flex: 1; background: #1e1e2a; color: #eee; border: 1px solid #333;
+    padding: 7px 10px; border-radius: 8px; font-size: 13px; font-family: inherit;
+  }
+  .word-highlight { font-size: 13px; color: #666; margin-top: 10px; min-height: 20px; line-height: 1.6; }
+  .word-highlight span.active { color: #4ade80; font-weight: 600; }
+  .status-line { font-size: 12px; color: #555; margin-top: 8px; min-height: 16px; }
+
+  .sep { height: 1px; background: #1e1e2a; margin: 16px 0; }
+  .pill {
+    display: inline-block; font-size: 11px; padding: 2px 8px;
+    border-radius: 20px; background: #1e1e2a; color: #888;
+    font-variant-numeric: tabular-nums;
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Jaw Motor Control</h1>
+  <span class="badge badge-mock" id="connBadge">Checking…</span>
+</div>
+
+<div class="grid">
+
+  <!-- MANUAL POSITION -->
+  <div class="card">
+    <h2>Manual Control</h2>
+    <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px;">
+      <span style="font-size:13px;color:#888;">Position (0 – 4095)</span>
+      <span class="val-display" id="posVal">—</span>
+    </div>
+    <div class="big-slider-wrap">
+      <input class="big-slider" type="range" id="posSlider" min="0" max="4095" value="2730">
+    </div>
+    <div class="slider-labels"><span>0</span><span>2048</span><span>4095</span></div>
+
+    <div class="live-pos-bar"><div class="live-pos-fill" id="livePosBar" style="width:50%"></div></div>
+    <div style="font-size:11px;color:#444;margin-top:4px;">Live motor position</div>
+
+    <div class="btn-row">
+      <button id="openJawBtn" class="success">Jaw Open</button>
+      <button id="closeJawBtn" class="danger">Jaw Close</button>
+      <button id="goHome">Go Home</button>
+    </div>
+    <div class="btn-row">
+      <button id="torqueOn">Torque ON</button>
+      <button id="torqueOff">Torque OFF</button>
+      <button id="readPos">Read Position</button>
+    </div>
+    <div class="status-line" id="motorStatus">—</div>
+  </div>
+
+  <!-- CALIBRATION -->
+  <div class="card">
+    <h2>Calibration</h2>
+
+    <div class="calib-row">
+      <span class="calib-label">Motor ID</span>
+      <input type="number" id="cfgMotorId" min="0" max="253" value="1">
+    </div>
+    <div class="calib-row">
+      <span class="calib-label">Jaw Open</span>
+      <input type="number" id="cfgOpen" min="0" max="4095">
+      <button id="setOpenFromCurrent" style="font-size:12px;padding:5px 10px;">← Set current</button>
+    </div>
+    <div class="calib-row">
+      <span class="calib-label">Jaw Close</span>
+      <input type="number" id="cfgClose" min="0" max="4095">
+      <button id="setCloseFromCurrent" style="font-size:12px;padding:5px 10px;">← Set current</button>
+    </div>
+    <div class="calib-row">
+      <span class="calib-label">Home</span>
+      <input type="number" id="cfgHome" min="0" max="4095">
+      <button id="setHomeFromCurrent" style="font-size:12px;padding:5px 10px;">← Set current</button>
+    </div>
+    <div class="calib-row">
+      <span class="calib-label">Speed</span>
+      <input type="range" id="cfgSpeed" min="50" max="4095" value="1200" style="flex:1">
+      <span class="pill" id="cfgSpeedVal">1200</span>
+    </div>
+
+    <div class="btn-row">
+      <button id="saveConfig" class="primary">💾 Save Settings</button>
+      <span class="status-line" id="configStatus"></span>
+    </div>
+
+    <div class="sep"></div>
+
+    <div style="font-size:12px;color:#555;line-height:1.8;">
+      <b style="color:#777;">Calibration tip:</b><br>
+      1. Turn <b>Torque OFF</b><br>
+      2. Move jaw physically to fully <b>open</b> position<br>
+      3. Click <b>Read Position</b> → click <b>← Set current</b> next to Jaw Open<br>
+      4. Repeat for <b>close</b> position<br>
+      5. Click <b>Save Settings</b>
+    </div>
+  </div>
+
+  <!-- SPEAK & SYNC -->
+  <div class="card full">
+    <h2>Speak & Jaw Sync (EdgeTTS)</h2>
+    <div class="row" style="margin-top:0;">
+      <span style="font-size:13px;color:#888;min-width:50px;">Voice</span>
+      <select id="voiceSelect"></select>
+    </div>
+    <textarea id="speakText" placeholder="Type a sentence to speak…">Namaste, Main InMoov robot hun. Aapka swagat hai!</textarea>
+    <div class="btn-row">
+      <button id="speakBtn" class="primary">▶ Speak</button>
+      <button id="stopBtn" class="danger">■ Stop</button>
+    </div>
+    <div class="word-highlight" id="wordHighlight"></div>
+    <div class="status-line" id="speakStatus"></div>
+  </div>
+
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let currentConfig = null;
+let currentAudio = null;
+let scheduledTimers = [];
+let livePoller = null;
+
+// ── Helpers ───────────────────────────────────────
+function sendPos(pos) {
+  pos = Math.max(0, Math.min(4095, parseInt(pos)));
+  return fetch('/api/position', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ position: pos })
+  });
+}
+
+function sendJawAmplitude(amp) {
+  fetch('/api/jaw', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ amplitude: amp })
+  }).catch(() => {});
+}
+
+async function fetchLivePosition() {
+  try {
+    const r = await fetch('/api/position').then(r => r.json());
+    return r.position ?? null;
+  } catch { return null; }
+}
+
+function updateLiveBar(pos) {
+  if (pos == null) return;
+  const pct = (pos / 4095 * 100).toFixed(1);
+  $('livePosBar').style.width = pct + '%';
+  $('motorStatus').textContent = `Live position: ${pos}`;
+}
+
+// ── Config ────────────────────────────────────────
+async function loadConfig() {
+  const c = await fetch('/api/config').then(r => r.json());
+  currentConfig = c;
+  $('cfgMotorId').value = c.motor_id;
+  $('cfgOpen').value    = c.jaw_open;
+  $('cfgClose').value   = c.jaw_close;
+  $('cfgHome').value    = c.jaw_home;
+  $('cfgSpeed').value   = c.speed;
+  $('cfgSpeedVal').textContent = c.speed;
+
+  // Position slider: full 0-4095 range for calibration
+  $('posSlider').value = c.jaw_close;
+  $('posVal').textContent = c.jaw_close;
+  updateSliderFill(c.jaw_close);
+
+  const badge = $('connBadge');
+  if (c.mock_mode) {
+    badge.textContent = 'MOCK (no hardware)';
+    badge.className = 'badge badge-mock';
+  } else {
+    badge.textContent = 'Live Hardware';
+    badge.className = 'badge badge-live';
+  }
+}
+
+$('cfgSpeed').addEventListener('input', () => {
+  $('cfgSpeedVal').textContent = $('cfgSpeed').value;
+});
+
+$('saveConfig').addEventListener('click', async () => {
+  const body = {
+    motor_id: parseInt($('cfgMotorId').value),
+    jaw_open:  parseInt($('cfgOpen').value),
+    jaw_close: parseInt($('cfgClose').value),
+    jaw_home:  parseInt($('cfgHome').value),
+    speed:     parseInt($('cfgSpeed').value),
+  };
+  await fetch('/api/config', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  });
+  $('configStatus').textContent = '✓ Saved';
+  setTimeout(() => $('configStatus').textContent = '', 2000);
+  await loadConfig();
+});
+
+// ── Slider ────────────────────────────────────────
+function updateSliderFill(val) {
+  const pct = (val / 4095 * 100).toFixed(1);
+  $('posSlider').style.setProperty('--pct', pct + '%');
+}
+
+let isSendingPos = false;
+let pendingPos = null;
+
+async function dispatchPos(v) {
+  v = parseInt(v);
+  $('posVal').textContent = v;
+  updateSliderFill(v);
+  updatePosDisplay(v);
+
+  if (isSendingPos) {
+    pendingPos = v;
+    return;
+  }
+
+  isSendingPos = true;
+  pendingPos = null;
+  try {
+    await sendPos(v);
+  } finally {
+    isSendingPos = false;
+    if (pendingPos !== null && pendingPos !== v) {
+      const nextPos = pendingPos;
+      pendingPos = null;
+      dispatchPos(nextPos);
+    }
+  }
+}
+
+$('posSlider').addEventListener('input', () => {
+  dispatchPos($('posSlider').value);
+});
+
+$('posSlider').addEventListener('change', () => {
+  dispatchPos($('posSlider').value);
+});
+
+// ── Calibration helpers ───────────────────────────
+async function getCurrentPos() {
+  const p = await fetchLivePosition();
+  if (p != null) {
+    updatePosDisplay(p);
+    $('posSlider').value = p;
+    $('posVal').textContent = p;
+    updateSliderFill(p);
+  }
+  return p;
+}
+
+$('setOpenFromCurrent').addEventListener('click',  async () => { const p = await getCurrentPos(); if (p != null) $('cfgOpen').value  = p; });
+$('setCloseFromCurrent').addEventListener('click', async () => { const p = await getCurrentPos(); if (p != null) $('cfgClose').value = p; });
+$('setHomeFromCurrent').addEventListener('click',  async () => {
+  const c = await fetch('/api/set_home', { method: 'POST' }).then(r => r.json());
+  if (c.jaw_home != null) { $('cfgHome').value = c.jaw_home; currentConfig = c; }
+});
+
+// ── Jaw & motor buttons ───────────────────────────
+$('openJawBtn').addEventListener('click', () => {
+  const open = parseInt($('cfgOpen').value);
+  $('posSlider').value = open;
+  $('posVal').textContent = open;
+  updateSliderFill(open);
+  updatePosDisplay(open);
+  sendPos(open);
+});
+$('closeJawBtn').addEventListener('click', () => {
+  const close = parseInt($('cfgClose').value);
+  $('posSlider').value = close;
+  $('posVal').textContent = close;
+  updateSliderFill(close);
+  updatePosDisplay(close);
+  sendPos(close);
+});
+$('torqueOn').addEventListener('click',  () => fetch('/api/torque/1', { method: 'POST' }));
+$('torqueOff').addEventListener('click', () => fetch('/api/torque/0', { method: 'POST' }));
+$('goHome').addEventListener('click',    () => fetch('/api/home',     { method: 'POST' }));
+$('readPos').addEventListener('click', async () => {
+  $('motorStatus').textContent = 'Reading…';
+  const p = await fetchLivePosition();
+  if (p != null) {
+    updatePosDisplay(p);
+    $('posSlider').value = p;
+    $('posVal').textContent = p;
+    updateSliderFill(p);
+  } else {
+    $('motorStatus').textContent = 'No response from motor';
+  }
+});
+
+// ── Live position polling ─────────────────────────
+// No continuous polling — show last commanded position locally.
+// Click 'Read Position' to fetch actual hardware position.
+function updatePosDisplay(pos) {
+  if (pos == null) return;
+  const pct = (pos / 4095 * 100).toFixed(1);
+  $('livePosBar').style.width = pct + '%';
+  $('motorStatus').textContent = `Position: ${pos}`;
+}
+
+// ── Voices ───────────────────────────────────────
+async function loadVoices() {
+  const v = await fetch('/api/voices').then(r => r.json());
+  const sel = $('voiceSelect');
+  sel.innerHTML = '';
+  for (const voice of v.voices) {
+    const opt = document.createElement('option');
+    opt.value = voice.id;
+    opt.textContent = voice.label;
+    sel.appendChild(opt);
+  }
+  sel.value = v.default;
+}
+
+// ── Speak + jaw sync ──────────────────────────────
+function clearScheduled() {
+  scheduledTimers.forEach(t => clearTimeout(t));
+  scheduledTimers = [];
+}
+
+function stopSpeaking() {
+  clearScheduled();
+  if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+  sendJawAmplitude(0);
+  $('wordHighlight').innerHTML = '';
+  $('speakStatus').textContent = '';
+}
+
+$('stopBtn').addEventListener('click', stopSpeaking);
+
+$('speakBtn').addEventListener('click', async () => {
+  stopSpeaking();
+  const text = $('speakText').value.trim();
+  if (!text) return;
+
+  $('speakStatus').textContent = 'Synthesising…';
+  let result;
+  try {
+    result = await fetch('/api/speak', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ text, voice: $('voiceSelect').value })
+    }).then(r => r.json());
+  } catch (e) {
+    $('speakStatus').textContent = 'Request failed: ' + e; return;
+  }
+  if (result.error) { $('speakStatus').textContent = 'Error: ' + result.error; return; }
+
+  const words = result.words || [];
+  const audioBlob = base64ToBlob(result.audio_b64, 'audio/mpeg');
+  const url = URL.createObjectURL(audioBlob);
+  const audio = new Audio(url);
+  currentAudio = audio;
+
+  // Build word highlights
+  $('wordHighlight').innerHTML = words.map((w, i) =>
+    `<span id="w${i}">${escapeHtml(w.text)}</span>`
+  ).join(' ');
+
+  $('speakStatus').textContent = 'Speaking…';
+
+  // Schedule jaw commands anchored to the actual audio start
+  audio.addEventListener('playing', () => {
+    words.forEach((w, i) => {
+      scheduledTimers.push(setTimeout(() => {
+        sendJawAmplitude(0.9);
+        const el = document.getElementById(`w${i}`);
+        if (el) el.classList.add('active');
+      }, w.start_ms));
+      scheduledTimers.push(setTimeout(() => {
+        sendJawAmplitude(0);
+        const el = document.getElementById(`w${i}`);
+        if (el) el.classList.remove('active');
+      }, w.end_ms));
+    });
+  });
+
+  audio.addEventListener('ended', stopSpeaking);
+  audio.play().catch(e => { $('speakStatus').textContent = 'Playback failed: ' + e; });
+});
+
+function base64ToBlob(b64, mime) {
+  const bytes = atob(b64);
+  const arr = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// ── Init ──────────────────────────────────────────
+loadConfig();
+loadVoices();
+// No auto-polling — serial bus stays free for fast position commands
+</script>
+</body>
+</html>

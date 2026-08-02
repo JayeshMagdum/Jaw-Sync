@@ -1,0 +1,6 @@
+transformers==4.49.0
+torch==2.4.0
+torchaudio==2.4.0
+numpy<2
+soundfile
+kokoro

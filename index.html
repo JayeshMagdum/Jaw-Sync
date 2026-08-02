@@ -1,0 +1,1038 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>ST3215 Dashboard</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #111; color: #eee; margin: 0; padding: 32px; }
+  h1 { font-weight: 400; margin: 0 0 24px; }
+  .card { background: #1d1d1d; border-radius: 12px; padding: 20px 24px; margin-bottom: 16px; }
+  .row { display: flex; align-items: center; gap: 16px; margin-top: 12px; }
+  .label { font-size: 14px; opacity: 0.75; min-width: 80px; }
+  input[type=range] { flex: 1; accent-color: #4ea1ff; }
+  .val { font-variant-numeric: tabular-nums; min-width: 60px; text-align: right; }
+  .live { color: #7fdc7f; font-size: 13px; }
+  button { background: #2a2a2a; color: #eee; border: 1px solid #444; padding: 6px 14px; border-radius: 6px; cursor: pointer; }
+  button:hover { background: #333; }
+  button.off { background: #5a2222; border-color: #7a3030; }
+</style>
+</head>
+<body>
+<h1>ST3215 Motor Control</h1>
+
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <strong>ESP32 Eyes Sync</strong>
+    <button id="eyesToggle" data-on="0">Eyes Sync OFF</button>
+  </div>
+  <div class="row">
+    <span class="label">State</span>
+    <span class="live" id="eyesStatus">disabled</span>
+  </div>
+  <div class="row">
+    <span class="label">Left/right G13</span>
+    <input type="range" id="eyeG13" min="0" max="1" value="0.5" step="0.01">
+    <span class="val" id="eyeG13Val">0.50</span>
+  </div>
+  <div class="row">
+    <span class="label">Up/down G14</span>
+    <input type="range" id="eyeG12" min="0" max="1" value="0.5" step="0.01">
+    <span class="val" id="eyeG12Val">0.50</span>
+  </div>
+  <div class="row">
+    <span class="label">Eye speed</span>
+    <input type="range" id="eyeSpeed" min="10" max="100" value="75" step="5">
+    <span class="val" id="eyeSpeedVal">75</span>
+  </div>
+  <div class="row">
+    <button id="eyesIdle">Idle</button>
+    <button id="eyesListen">Listening</button>
+    <button id="eyesSpeak">Speaking</button>
+    <button id="eyesBlink">Blink</button>
+    <button id="eyesCenter">Center</button>
+  </div>
+  <div class="row" style="flex-wrap:wrap">
+    <button class="eyePreset" data-preset="left">Left</button>
+    <button class="eyePreset" data-preset="right">Right</button>
+    <button class="eyePreset" data-preset="up">Up</button>
+    <button class="eyePreset" data-preset="down">Down</button>
+    <button class="eyePreset" data-preset="scan">Scan</button>
+    <button class="eyePreset" data-preset="nod">Nod</button>
+    <button class="eyePreset" data-preset="shake">Shake</button>
+    <button class="eyePreset" data-preset="curious">Curious</button>
+    <button class="eyePreset" data-preset="alert">Alert</button>
+    <button id="eyesIdleMotion">Idle motion</button>
+    <button id="eyesStopMotion">Stop motion</button>
+  </div>
+</div>
+
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <strong>Neerja AI Assistant</strong>
+    <div>
+      <button id="aiSpeak">Speak reply</button>
+      <button id="aiAsk">Ask AI</button>
+    </div>
+  </div>
+  <div class="row">
+    <span class="label">Role</span>
+    <select id="aiMode" style="flex:1;background:#222;color:#eee;border:1px solid #444;padding:6px;border-radius:6px">
+      <option value="receptionist">Receptionist</option>
+      <option value="interviewer">Mock interviewer</option>
+      <option value="presentation">Presenter</option>
+    </select>
+  </div>
+  <div class="row">
+    <textarea id="aiInput" rows="2" style="flex:1;background:#222;color:#eee;border:1px solid #444;border-radius:6px;padding:8px;font-family:inherit;font-size:14px" placeholder="Ask Neerja what to say...">Welcome our guest and ask how you can help.</textarea>
+  </div>
+  <div class="row">
+    <span class="label">Reply</span>
+    <textarea id="aiReply" rows="3" style="flex:1;background:#191919;color:#eee;border:1px solid #333;border-radius:6px;padding:8px;font-family:inherit;font-size:14px"></textarea>
+  </div>
+</div>
+
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+    <strong>Jaw Mic Mimic</strong>
+    <div>
+      <button id="calBtn">Auto-calibrate</button>
+      <button id="micBtn">Start mic</button>
+    </div>
+  </div>
+  <div class="row" style="flex-wrap:wrap">
+    <button id="btnSetOpen">Set Max Open <strong id="jawOpen">--</strong></button>
+    <button id="btnSetClose">Set Full Close <strong id="jawClose">--</strong></button>
+  </div>
+  <div class="row">
+    <span class="label">Device</span>
+    <select id="micDev" style="flex:1;background:#222;color:#eee;border:1px solid #444;padding:6px;border-radius:6px"></select>
+  </div>
+  <div class="row">
+    <span class="label">Level</span>
+    <div style="flex:1;height:14px;background:#222;border-radius:7px;overflow:hidden">
+      <div id="meter" style="height:100%;width:0%;background:linear-gradient(90deg,#4ea1ff,#7fdc7f);transition:width 60ms"></div>
+    </div>
+    <span class="val" id="ampVal">0.00</span>
+  </div>
+  <div class="row">
+    <span class="label">Raw RMS</span>
+    <span class="val" id="rawVal" style="text-align:left">0.0000</span>
+  </div>
+  <div class="row">
+    <span class="label">Sensitivity</span>
+    <input type="range" id="sens" min="1" max="50" value="10" step="0.5">
+    <span class="val" id="sensVal">10</span>
+  </div>
+</div>
+
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <strong>Type-to-Speak (natural voices)</strong>
+    <div>
+      <button id="ttsStop">Stop</button>
+      <button id="ttsBtn">Speak</button>
+    </div>
+  </div>
+  <div class="row">
+    <textarea id="ttsText" rows="2" style="flex:1;background:#222;color:#eee;border:1px solid #444;border-radius:6px;padding:8px;font-family:inherit;font-size:14px" placeholder="Type something for the InMoov to say…">Hello, I am InMoov. Nice to meet you!</textarea>
+  </div>
+  <div class="row">
+    <span class="label">Voice</span>
+    <select id="ttsVoice" style="flex:1;background:#222;color:#eee;border:1px solid #444;padding:6px;border-radius:6px"></select>
+  </div>
+  <div class="row">
+    <span class="label">Mouth gain</span>
+    <input type="range" id="ttsSens" min="0.5" max="6" value="2" step="0.1">
+    <span class="val" id="ttsSensVal">2.0</span>
+  </div>
+  <div class="row">
+    <span class="label">Close gate</span>
+    <input type="range" id="ttsGate" min="0" max="0.6" value="0.03" step="0.01">
+    <span class="val" id="ttsGateVal">0.03</span>
+  </div>
+  <div class="row">
+    <span class="label">Syllable detail</span>
+    <input type="range" id="ttsDetail" min="0" max="1" value="0.7" step="0.05">
+    <span class="val" id="ttsDetailVal">0.70</span>
+  </div>
+  <div class="row">
+    <span class="label">Jaw style</span>
+    <select id="ttsMode" style="flex:1;background:#222;color:#eee;border:1px solid #444;padding:6px;border-radius:6px">
+      <option value="hybrid">Hybrid audio - synced</option>
+      <option value="text" selected>Text syllables - simple</option>
+      <option value="audio">Audio envelope - raw</option>
+    </select>
+  </div>
+  <div class="row">
+    <span class="label">Sync (ms)</span>
+    <input type="range" id="ttsLag" min="0" max="700" value="380" step="10">
+    <span class="val" id="ttsLagVal">380</span>
+  </div>
+  <div style="font-size:12px;opacity:0.6;margin-top:4px">
+    Sync = how many ms the jaw moves <em>before</em> the audio plays. Increase if jaw lags behind; decrease if jaw moves too early.
+  </div>
+</div>
+
+<div id="motors"></div>
+
+<script>
+const motorsDiv = document.getElementById('motors');
+let cfg = null;
+
+async function init() {
+  cfg = await fetch('/api/motors').then(r => r.json());
+  if (cfg.jaw) {
+    document.getElementById('jawOpen').textContent = cfg.jaw.max_open;
+    document.getElementById('jawClose').textContent = cfg.jaw.full_close;
+  }
+  for (const id of cfg.ids) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const lim = (cfg.limits && cfg.limits[id]) || [cfg.min, cfg.max];
+    const start = Math.min(Math.max(2048, lim[0]), lim[1]);
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <strong>Motor ID ${id}</strong>
+        <button id="t${id}" data-on="1">Torque ON</button>
+      </div>
+      <div class="row">
+        <span class="label">Goal</span>
+        <input type="range" id="s${id}" min="${lim[0]}" max="${lim[1]}" value="${start}">
+        <span class="val" id="v${id}">${start}</span>
+      </div>
+      <div class="row">
+        <span class="label">Wheel</span>
+        <button id="f${id}">Forward</button>
+        <button id="x${id}">Stop</button>
+        <button id="r${id}">Reverse</button>
+      </div>
+      <div class="row">
+        <span class="label">Speed</span>
+        <input type="range" id="d${id}" min="0" max="100" value="35">
+        <span class="val" id="dv${id}">35%</span>
+      </div>
+      <div class="row">
+        <span class="label">Live</span>
+        <span class="live" id="p${id}">--</span>
+      </div>
+    `;
+    motorsDiv.appendChild(card);
+
+    const slider = card.querySelector(`#s${id}`);
+    const val = card.querySelector(`#v${id}`);
+    const driveSpeed = card.querySelector(`#d${id}`);
+    const driveSpeedVal = card.querySelector(`#dv${id}`);
+    let currentDriveDir = 'stop';
+    let pending = null, sending = false;
+
+    async function flush() {
+      if (sending || pending === null) return;
+      sending = true;
+      const p = pending; pending = null;
+      try {
+        await fetch(`/api/position/${id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ position: p })
+        });
+      } catch (e) {}
+      sending = false;
+      flush();
+    }
+
+    slider.addEventListener('input', () => {
+      val.textContent = slider.value;
+      pending = parseInt(slider.value);
+      flush();
+    });
+
+    async function drive(direction) {
+      currentDriveDir = direction;
+      try {
+        await fetch(`/api/drive/${id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ direction, speed: parseInt(driveSpeed.value) })
+        });
+      } catch (e) {}
+    }
+
+    card.querySelector(`#f${id}`).addEventListener('click', () => drive('forward'));
+    card.querySelector(`#x${id}`).addEventListener('click', () => drive('stop'));
+    card.querySelector(`#r${id}`).addEventListener('click', () => drive('reverse'));
+    driveSpeed.addEventListener('input', () => {
+      driveSpeedVal.textContent = driveSpeed.value + '%';
+      if (currentDriveDir !== 'stop') drive(currentDriveDir);
+    });
+
+    const tbtn = card.querySelector(`#t${id}`);
+    tbtn.addEventListener('click', async () => {
+      const on = tbtn.dataset.on === '1' ? 0 : 1;
+      await fetch(`/api/torque/${id}/${on}`, { method: 'POST' });
+      tbtn.dataset.on = on;
+      tbtn.textContent = on ? 'Torque ON' : 'Torque OFF';
+      tbtn.classList.toggle('off', !on);
+    });
+  }
+
+  setInterval(pollPositions, 200);
+}
+
+let pollPaused = false;
+async function pollPositions() {
+  if (pollPaused) return;
+  for (const id of cfg.ids) {
+    try {
+      const r = await fetch(`/api/position/${id}`).then(r => r.json());
+      if (r.position !== undefined) {
+        document.getElementById(`p${id}`).textContent = r.position;
+      }
+    } catch (e) {}
+  }
+}
+
+init();
+
+// --- Jaw Calibration ---
+document.getElementById('btnSetOpen').addEventListener('click', async () => {
+  const p1 = document.getElementById('p1').textContent;
+  if (p1 === '--') return alert('No live position available for jaw (motor 1).');
+  const pos = parseInt(p1);
+  try {
+    const res = await fetch('/api/jaw/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jaw_open: pos })
+    }).then(r => r.json());
+    if (res.jaw_open) document.getElementById('jawOpen').textContent = res.jaw_open;
+    alert('Max Open set to ' + pos);
+  } catch(e) { alert(e.message); }
+});
+
+document.getElementById('btnSetClose').addEventListener('click', async () => {
+  const p1 = document.getElementById('p1').textContent;
+  if (p1 === '--') return alert('No live position available for jaw (motor 1).');
+  const pos = parseInt(p1);
+  try {
+    const res = await fetch('/api/jaw/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jaw_close: pos })
+    }).then(r => r.json());
+    if (res.jaw_close) document.getElementById('jawClose').textContent = res.jaw_close;
+    alert('Full Close set to ' + pos);
+  } catch(e) { alert(e.message); }
+});
+
+// --- Mic mimic ---
+const micBtn = document.getElementById('micBtn');
+const micDev = document.getElementById('micDev');
+const meter = document.getElementById('meter');
+const ampVal = document.getElementById('ampVal');
+const rawVal = document.getElementById('rawVal');
+const sens = document.getElementById('sens');
+const sensVal = document.getElementById('sensVal');
+sens.addEventListener('input', () => sensVal.textContent = sens.value);
+
+let micRunning = false, audioCtx = null, analyser = null, micStream = null;
+let smoothed = 0, lastSent = 0;
+let noiseHistory = [], noiseFloor = 0;
+
+async function listMics() {
+  // Request permission first so labels become available
+  try {
+    const tmp = await navigator.mediaDevices.getUserMedia({ audio: true });
+    tmp.getTracks().forEach(t => t.stop());
+  } catch (e) { console.warn('initial mic perm:', e); }
+  const devs = await navigator.mediaDevices.enumerateDevices();
+  micDev.innerHTML = '';
+  devs.filter(d => d.kind === 'audioinput').forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d.deviceId;
+    opt.textContent = d.label || `mic ${d.deviceId.slice(0,6)}`;
+    micDev.appendChild(opt);
+  });
+  console.log('Audio inputs:', devs.filter(d => d.kind === 'audioinput'));
+}
+listMics();
+
+micBtn.addEventListener('click', async () => {
+  if (micRunning) {
+    micRunning = false;
+    micStream && micStream.getTracks().forEach(t => t.stop());
+    audioCtx && audioCtx.close();
+    micBtn.textContent = 'Start mic';
+    fetch('/api/jaw', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({amplitude: 0}) });
+    meter.style.width = '0%';
+    return;
+  }
+  try {
+    const constraints = {
+      audio: {
+        deviceId: micDev.value ? { exact: micDev.value } : undefined,
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false
+      }
+    };
+    micStream = await navigator.mediaDevices.getUserMedia(constraints);
+    console.log('Got stream from:', micStream.getAudioTracks()[0].label);
+  } catch (e) {
+    alert('Mic denied/failed: ' + e.message);
+    return;
+  }
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') await audioCtx.resume();
+  const src = audioCtx.createMediaStreamSource(micStream);
+
+  // Band-pass: kill fan/AC rumble (<200 Hz) and high hiss (>3.5 kHz).
+  // Voice envelope sits in the formant band 300 Hz – 3 kHz.
+  const hpf = audioCtx.createBiquadFilter();
+  hpf.type = 'highpass'; hpf.frequency.value = 200; hpf.Q.value = 0.7;
+  const lpf = audioCtx.createBiquadFilter();
+  lpf.type = 'lowpass'; lpf.frequency.value = 3500; lpf.Q.value = 0.7;
+
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 1024;
+  src.connect(hpf); hpf.connect(lpf); lpf.connect(analyser);
+
+  // Reset adaptive noise tracker
+  noiseHistory.length = 0; noiseFloor = 0;
+
+  micRunning = true;
+  micBtn.textContent = 'Stop mic';
+  loop();
+});
+
+function rms() {
+  const buf = new Float32Array(analyser.fftSize);
+  analyser.getFloatTimeDomainData(buf);
+  let s = 0;
+  for (let i = 0; i < buf.length; i++) s += buf[i] * buf[i];
+  return Math.sqrt(s / buf.length);
+}
+
+async function loop() {
+  if (!micRunning) return;
+  const raw = rms();
+
+  // Adaptive noise floor: track raw values from the last ~3 seconds.
+  // Use the 25th-percentile as the "ambient" level (fan, hum, room tone).
+  noiseHistory.push(raw);
+  if (noiseHistory.length > 180) noiseHistory.shift();  // ~3 s at 60 fps
+  if (noiseHistory.length >= 30) {
+    const sorted = [...noiseHistory].sort((a, b) => a - b);
+    noiseFloor = sorted[Math.floor(sorted.length * 0.25)];
+  }
+  // Subtract ambient + a 50% safety margin so fan never crosses
+  const cleaned = Math.max(0, raw - noiseFloor * 1.5);
+
+  const gain = parseFloat(sens.value);
+  let amp = Math.min(1, cleaned * gain);
+  // hard gate — voice must clearly exceed the noise floor
+  if (amp < 0.04) amp = 0;
+  // attack fast, release slow → looks like a real jaw
+  if (amp > smoothed) smoothed = smoothed * 0.4 + amp * 0.6;
+  else smoothed = smoothed * 0.75 + amp * 0.25;
+
+  meter.style.width = (smoothed * 100).toFixed(0) + '%';
+  ampVal.textContent = smoothed.toFixed(2);
+  rawVal.textContent = `raw ${raw.toFixed(3)}  noise ${noiseFloor.toFixed(3)}  clean ${cleaned.toFixed(3)}`;
+
+  const now = performance.now();
+  if (now - lastSent > 40) {  // ~25 Hz
+    lastSent = now;
+    fetch('/api/jaw', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ amplitude: smoothed })
+    }).catch(() => {});
+  }
+  requestAnimationFrame(loop);
+}
+
+// --- Auto-calibrate ---
+const calBtn = document.getElementById('calBtn');
+calBtn.addEventListener('click', async () => {
+  if (!micRunning) { alert('Start mic first.'); return; }
+  calBtn.textContent = 'Be silent…';
+  calBtn.disabled = true;
+  await sample(1500, 'silence');
+  calBtn.textContent = 'Talk now…';
+  const voicePeak = await sample(2500, 'voice');
+  // pick sensitivity so peak voice → ~0.85 amplitude
+  const target = 0.85;
+  const newSens = Math.max(1, Math.min(50, target / Math.max(voicePeak, 0.005)));
+  sens.value = newSens.toFixed(1);
+  sensVal.textContent = sens.value;
+  calBtn.textContent = 'Auto-calibrate';
+  calBtn.disabled = false;
+  alert(`Set sensitivity to ${sens.value} (peak raw ${voicePeak.toFixed(4)})`);
+});
+
+function sample(ms, label) {
+  return new Promise(resolve => {
+    let peak = 0;
+    const t0 = performance.now();
+    function tick() {
+      if (!micRunning) { resolve(peak); return; }
+      const r = rms();
+      if (r > peak) peak = r;
+      if (performance.now() - t0 < ms) requestAnimationFrame(tick);
+      else { console.log(label, 'peak', peak); resolve(peak); }
+    }
+    tick();
+  });
+}
+
+// --- TTS with PRECOMPUTED envelope (perfect sync, syllable-accurate) ---
+const ttsBtn = document.getElementById('ttsBtn');
+const ttsStop = document.getElementById('ttsStop');
+const ttsText = document.getElementById('ttsText');
+const ttsVoiceSel = document.getElementById('ttsVoice');
+const ttsSens = document.getElementById('ttsSens');
+const ttsSensVal = document.getElementById('ttsSensVal');
+const ttsGate = document.getElementById('ttsGate');
+const ttsGateVal = document.getElementById('ttsGateVal');
+const ttsDetail = document.getElementById('ttsDetail');
+const ttsDetailVal = document.getElementById('ttsDetailVal');
+const ttsMode = document.getElementById('ttsMode');
+const ttsLag = document.getElementById('ttsLag');
+const ttsLagVal = document.getElementById('ttsLagVal');
+ttsLag.addEventListener('input', () => ttsLagVal.textContent = ttsLag.value);
+ttsSens.addEventListener('input', () => ttsSensVal.textContent = parseFloat(ttsSens.value).toFixed(1));
+ttsGate.addEventListener('input', () => ttsGateVal.textContent = parseFloat(ttsGate.value).toFixed(2));
+ttsDetail.addEventListener('input', () => ttsDetailVal.textContent = parseFloat(ttsDetail.value).toFixed(2));
+
+async function loadTtsVoices() {
+  const r = await fetch('/api/voices').then(r => r.json());
+  ttsVoiceSel.innerHTML = '';
+  for (const v of r.voices) {
+    const o = document.createElement('option');
+    o.value = v.id;
+    o.textContent = v.label;
+    if (v.id === r.default) o.selected = true;
+    ttsVoiceSel.appendChild(o);
+  }
+}
+loadTtsVoices();
+
+let ttsCtx = null, ttsSource = null, ttsTimer = null, ttsRunning = false;
+let eyesAnimTimer = null;
+let aiHistory = [];
+
+const eyesToggle = document.getElementById('eyesToggle');
+const eyesStatus = document.getElementById('eyesStatus');
+const eyesIdle = document.getElementById('eyesIdle');
+const eyesListen = document.getElementById('eyesListen');
+const eyesSpeak = document.getElementById('eyesSpeak');
+const eyesBlink = document.getElementById('eyesBlink');
+const eyesCenter = document.getElementById('eyesCenter');
+const eyeG13 = document.getElementById('eyeG13');
+const eyeG12 = document.getElementById('eyeG12');
+const eyeG13Val = document.getElementById('eyeG13Val');
+const eyeG12Val = document.getElementById('eyeG12Val');
+const eyeSpeed = document.getElementById('eyeSpeed');
+const eyeSpeedVal = document.getElementById('eyeSpeedVal');
+const eyesIdleMotion = document.getElementById('eyesIdleMotion');
+const eyesStopMotion = document.getElementById('eyesStopMotion');
+let lastEyeSent = 0;
+let eyeSequenceTimers = [];
+let idleEyeTimer = null;
+
+async function eyesCommand(command, params = {}) {
+  try {
+    const r = await fetch('/api/eyes', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({command, params})
+    });
+    const data = await r.json();
+    eyesStatus.textContent = data.ok ? data.detail : data.detail || 'disabled';
+    return data.ok;
+  } catch (e) {
+    eyesStatus.textContent = e.message;
+    return false;
+  }
+}
+
+function eyesAutoCommand(command, params = {}) {
+  if (eyesToggle.dataset.on === '1') {
+    eyesCommand(command, params);
+  }
+}
+
+async function setEyesEnabled(on) {
+  const r = await fetch('/api/eyes', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({enabled: on})
+  });
+  const data = await r.json();
+  eyesToggle.dataset.on = data.enabled ? '1' : '0';
+  eyesToggle.textContent = data.enabled ? 'Eyes Sync ON' : 'Eyes Sync OFF';
+  eyesStatus.textContent = data.enabled ? 'enabled' : 'disabled';
+}
+
+eyesToggle.addEventListener('click', () => setEyesEnabled(eyesToggle.dataset.on !== '1'));
+eyesIdle.addEventListener('click', () => eyesCommand('mode', {state: 'idle'}));
+eyesListen.addEventListener('click', () => eyesCommand('mode', {state: 'listening'}));
+eyesSpeak.addEventListener('click', () => eyesCommand('mode', {state: 'speaking'}));
+eyesBlink.addEventListener('click', () => eyesCommand('blink'));
+eyesCenter.addEventListener('click', () => setEyesLook(0.5, 0.5, true));
+eyeSpeed.addEventListener('input', () => eyeSpeedVal.textContent = eyeSpeed.value);
+
+function setEyesLook(g13, g12, force = false) {
+  g13 = Math.max(0, Math.min(1, g13));
+  g12 = Math.max(0, Math.min(1, g12));
+  eyeG13.value = g13.toFixed(2);
+  eyeG12.value = g12.toFixed(2);
+  eyeG13Val.textContent = g13.toFixed(2);
+  eyeG12Val.textContent = g12.toFixed(2);
+  const now = performance.now();
+  if (!force && now - lastEyeSent < 80) return;
+  lastEyeSent = now;
+  const g14Servo = 1 - g12;  // physical up/down servo is mounted reversed
+  eyesCommand('look', {g13: g13.toFixed(2), g14: g14Servo.toFixed(2), speed: eyeSpeed.value});
+}
+
+eyeG13.addEventListener('input', () => setEyesLook(parseFloat(eyeG13.value), parseFloat(eyeG12.value)));
+eyeG12.addEventListener('input', () => setEyesLook(parseFloat(eyeG13.value), parseFloat(eyeG12.value)));
+
+function stopEyeSequences() {
+  eyeSequenceTimers.forEach(t => clearTimeout(t));
+  eyeSequenceTimers = [];
+  clearInterval(idleEyeTimer);
+  idleEyeTimer = null;
+}
+
+function runEyeSequence(points) {
+  stopEyeSequences();
+  for (const p of points) {
+    const t = setTimeout(() => {
+      if (p.blink) eyesCommand('blink');
+      else setEyesLook(p.g13, p.g14, true);
+    }, p.t);
+    eyeSequenceTimers.push(t);
+  }
+}
+
+function runEyePreset(name) {
+  const c = {g13: 0.5, g14: 0.5};
+  const presets = {
+    left:    [{t:0, ...c}, {t:120, g13:0.18, g14:0.5}, {t:900, ...c}],
+    right:   [{t:0, ...c}, {t:120, g13:0.82, g14:0.5}, {t:900, ...c}],
+    up:      [{t:0, ...c}, {t:120, g13:0.5, g14:0.78}, {t:900, ...c}],
+    down:    [{t:0, ...c}, {t:120, g13:0.5, g14:0.22}, {t:900, ...c}],
+    scan:    [{t:0, g13:0.2, g14:0.55}, {t:550, g13:0.8, g14:0.55}, {t:1100, g13:0.35, g14:0.48}, {t:1550, ...c}],
+    nod:     [{t:0, ...c}, {t:180, g13:0.5, g14:0.72}, {t:420, g13:0.5, g14:0.30}, {t:660, g13:0.5, g14:0.70}, {t:920, ...c}],
+    shake:   [{t:0, ...c}, {t:140, g13:0.25, g14:0.5}, {t:360, g13:0.75, g14:0.5}, {t:580, g13:0.28, g14:0.5}, {t:820, ...c}],
+    curious: [{t:0, ...c}, {t:120, g13:0.72, g14:0.68}, {t:550, blink:true}, {t:780, g13:0.64, g14:0.58}, {t:1250, ...c}],
+    alert:   [{t:0, ...c}, {t:120, g13:0.5, g14:0.82}, {t:250, blink:true}, {t:520, g13:0.32, g14:0.72}, {t:850, g13:0.68, g14:0.72}, {t:1200, ...c}]
+  };
+  runEyeSequence(presets[name] || [c]);
+}
+
+document.querySelectorAll('.eyePreset').forEach(btn => {
+  btn.addEventListener('click', () => runEyePreset(btn.dataset.preset));
+});
+
+eyesIdleMotion.addEventListener('click', () => {
+  stopEyeSequences();
+  idleEyeTimer = setInterval(() => {
+    const g13 = 0.5 + (Math.random() - 0.5) * 0.28;
+    const g14 = 0.5 + (Math.random() - 0.5) * 0.16;
+    setEyesLook(g13, g14, true);
+    if (Math.random() < 0.15) eyesCommand('blink');
+  }, 1600);
+});
+
+eyesStopMotion.addEventListener('click', () => {
+  stopEyeSequences();
+  setEyesLook(0.5, 0.5, true);
+});
+
+const aiAsk = document.getElementById('aiAsk');
+const aiSpeak = document.getElementById('aiSpeak');
+const aiMode = document.getElementById('aiMode');
+const aiInput = document.getElementById('aiInput');
+const aiReply = document.getElementById('aiReply');
+
+aiAsk.addEventListener('click', async () => {
+  const text = aiInput.value.trim();
+  if (!text) return;
+  aiAsk.disabled = true;
+  aiReply.value = 'Thinking...';
+  eyesAutoCommand('mode', {state: 'listening'});
+  try {
+    const r = await fetch('/api/ai', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        mode: aiMode.value,
+        text,
+        history: aiHistory
+      })
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'AI failed');
+    aiReply.value = data.reply;
+    aiHistory.push({role: 'user', text});
+    aiHistory.push({role: 'assistant', text: data.reply});
+    aiHistory = aiHistory.slice(-8);
+    ttsText.value = data.reply;
+  } catch (e) {
+    aiReply.value = e.message;
+  } finally {
+    eyesAutoCommand('mode', {state: 'idle'});
+    aiAsk.disabled = false;
+  }
+});
+
+aiSpeak.addEventListener('click', async () => {
+  const text = aiReply.value.trim();
+  if (text && text !== 'Thinking...') {
+    ttsText.value = text;
+    await speakText(text);
+  }
+});
+
+function stopTts() {
+  ttsRunning = false;
+  pollPaused = false;
+  clearInterval(eyesAnimTimer); eyesAnimTimer = null;
+  clearInterval(ttsTimer); ttsTimer = null;
+  try { ttsSource && ttsSource.stop(); } catch (e) {}
+  ttsSource = null;
+  if (ttsCtx) { ttsCtx.close().catch(() => {}); ttsCtx = null; }
+  fetch('/api/jaw', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ amplitude: 0 })
+  }).catch(() => {});
+  eyesAutoCommand('mode', {state: 'idle'});
+}
+
+function startSpeakingEyes() {
+  if (eyesToggle.dataset.on !== '1') return;
+  clearInterval(eyesAnimTimer);
+  eyesAutoCommand('mode', {state: 'speaking'});
+  setEyesLook(0.5, 0.5, true);
+  eyesAnimTimer = setInterval(() => {
+    if (!ttsRunning) return;
+    const g13 = 0.5 + (Math.random() - 0.5) * 0.18;
+    const g12 = 0.5 + (Math.random() - 0.5) * 0.10;
+    setEyesLook(g13, g12, true);
+    if (Math.random() < 0.18) eyesAutoCommand('blink');
+  }, 650);
+}
+
+ttsStop.addEventListener('click', stopTts);
+
+async function speakText(text) {
+  if (!text) return;
+  stopTts();
+  ttsBtn.disabled = true;
+  try {
+    const url = '/api/tts?text=' + encodeURIComponent(text) +
+                '&voice=' + encodeURIComponent(ttsVoiceSel.value);
+    const wavBuf = await fetch(url).then(r => r.arrayBuffer());
+    ttsCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (ttsCtx.state === 'suspended') await ttsCtx.resume();
+    const audioBuf = await ttsCtx.decodeAudioData(wavBuf);
+    // 10 ms envelope hop follows real voice speed changes. The jaw is still
+    // commanded at a practical motor rate so the serial bus is not flooded.
+    const ENV_HOP = 10;
+    const CMD_HOP = 45;
+    const env = computeEnvelope(audioBuf, ENV_HOP);
+    const hybridEnv = computeHybridEnvelope(audioBuf, ENV_HOP);
+    ttsSource = ttsCtx.createBufferSource();
+    ttsSource.buffer = audioBuf;
+    ttsSource.connect(ttsCtx.destination);
+    ttsSource.onended = stopTts;
+    // Motor lag compensation: jaw moves NOW, audio plays MOTOR_LAG_MS later.
+    const MOTOR_LAG_MS = parseInt(ttsLag.value);
+    const sourceStartTime = ttsCtx.currentTime + MOTOR_LAG_MS / 1000;
+    ttsSource.start(sourceStartTime);
+    ttsRunning = true;
+    pollPaused = true;          // free the serial bus during TTS
+    startSpeakingEyes();
+    if (ttsMode.value === 'hybrid') {
+      driveAudioClockJaw(hybridEnv, ENV_HOP, CMD_HOP, sourceStartTime, MOTOR_LAG_MS);
+    } else if (ttsMode.value === 'text') {
+      const pulses = computeTextPulses(text, audioBuf.duration * 1000);
+      driveTextJaw(pulses, CMD_HOP, sourceStartTime, MOTOR_LAG_MS);
+    } else {
+      driveJaw(env, ENV_HOP, CMD_HOP, sourceStartTime, MOTOR_LAG_MS);
+    }
+  } catch (e) {
+    alert('TTS failed: ' + e.message);
+    stopTts();
+  } finally {
+    ttsBtn.disabled = false;
+  }
+}
+
+ttsBtn.addEventListener('click', async () => {
+  await speakText(ttsText.value.trim());
+});
+
+function computeEnvelope(audioBuf, hopMs) {
+  const ch = audioBuf.getChannelData(0);
+  const sr = audioBuf.sampleRate;
+  const win = Math.floor(sr * hopMs / 1000);
+  const raw = [];
+  for (let i = 0; i + win <= ch.length; i += win) {
+    let s = 0;
+    for (let j = 0; j < win; j++) { const v = ch[i + j]; s += v * v; }
+    raw.push(Math.sqrt(s / win));
+  }
+
+  // ── Valley-enhance: subtract a CENTERED running mean (~90 ms window).
+  // Syllable rate is ~4–6 Hz (200–250 ms per syllable). A short, centered
+  // window lets each syllable peak rise above its own local average while
+  // the inter-syllable dips fall to zero. Centered (not trailing) avoids
+  // the lag that makes the second half of every word stay open.
+  const detail = parseFloat(document.getElementById('ttsDetail').value);
+  const half = Math.max(1, Math.round(45 / hopMs));   // ±45 ms = 90 ms total
+  const enhanced = raw.map((v, i) => {
+    let sum = 0, n = 0;
+    for (let j = Math.max(0, i - half); j <= Math.min(raw.length - 1, i + half); j++) {
+      sum += raw[j]; n++;
+    }
+    const mean = sum / n;
+    return Math.max(0, v - mean * detail);
+  });
+
+  // Percentile-based normalisation on the enhanced signal
+  const sorted = [...enhanced].sort((a, b) => a - b);
+  const p = (q) => sorted[Math.min(sorted.length - 1, Math.max(0, Math.floor(sorted.length * q)))];
+  const floor = p(0.20);
+  const peak = Math.max(p(0.92), floor + 0.001);
+  return enhanced.map(x => Math.max(0, Math.min(1, (x - floor) / (peak - floor))));
+}
+
+function percentile(values, q) {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.min(sorted.length - 1, Math.max(0, Math.floor(sorted.length * q)))];
+}
+
+function computeRmsFrames(audioBuf, hopMs) {
+  const ch = audioBuf.getChannelData(0);
+  const sr = audioBuf.sampleRate;
+  const hop = Math.max(1, Math.floor(sr * hopMs / 1000));
+  const win = Math.max(hop, Math.floor(sr * 0.030)); // 30 ms RMS window
+  const out = [];
+  for (let i = 0; i < ch.length; i += hop) {
+    let s = 0, n = 0;
+    for (let j = 0; j < win && i + j < ch.length; j++) {
+      const v = ch[i + j];
+      s += v * v; n++;
+    }
+    out.push(Math.sqrt(s / Math.max(1, n)));
+  }
+  return out;
+}
+
+function computeHybridEnvelope(audioBuf, hopMs) {
+  const raw = computeRmsFrames(audioBuf, hopMs);
+  if (!raw.length) return [];
+
+  const floor = percentile(raw, 0.18);
+  const loud = Math.max(percentile(raw, 0.94), floor + 0.001);
+  const norm = raw.map(x => Math.max(0, Math.min(1, (x - floor) / (loud - floor))));
+
+  // Slow contour follows word loudness; subtracting part of it exposes
+  // syllable valleys while still keeping real TTS speed variation.
+  const slowRadius = Math.max(2, Math.round(85 / hopMs));
+  const out = [];
+  for (let i = 0; i < norm.length; i++) {
+    let sum = 0, n = 0;
+    for (let j = Math.max(0, i - slowRadius); j <= Math.min(norm.length - 1, i + slowRadius); j++) {
+      sum += norm[j]; n++;
+    }
+    const slow = sum / n;
+    const local = Math.max(0, norm[i] - slow * 0.72);
+    const transient = Math.max(0, norm[i] - (norm[i - 2] || norm[i]) * 0.62);
+    // Keep only syllable peaks. Do not add a raw loudness baseline here,
+    // otherwise a whole phrase holds the jaw open.
+    let v = Math.max(local, transient * 1.15);
+    out.push(Math.max(0, Math.min(1, v)));
+  }
+
+  const peak = Math.max(percentile(out, 0.95), 0.001);
+  return out.map(x => Math.max(0, Math.min(1, x / peak)));
+}
+
+function countSyllables(word) {
+  const w = word.toLowerCase();
+  if (/[\u0900-\u097f]/.test(w)) {
+    // Devanagari: count vowel signs and independent vowels. Consonants with
+    // inherent schwa are approximated as extra short syllables.
+    const marks = (w.match(/[\u093e-\u094c\u0962\u0963\u0904-\u0914]/g) || []).length;
+    const consonants = (w.match(/[\u0915-\u0939]/g) || []).length;
+    const halants = (w.match(/\u094d/g) || []).length;
+    return Math.max(1, Math.min(5, marks + Math.ceil(Math.max(0, consonants - halants) / 2)));
+  }
+
+  const cleaned = w.replace(/[^a-z]/g, '').replace(/e$/, '');
+  const groups = cleaned.match(/[aeiouy]+/g);
+  return Math.max(1, Math.min(4, groups ? groups.length : 1));
+}
+
+function computeTextPulses(text, durationMs) {
+  const words = text
+    .replace(/[।.!?]+/g, ' $& ')
+    .split(/\s+/)
+    .filter(Boolean);
+  const items = [];
+  for (const word of words) {
+    if (/^[।.!?]+$/.test(word)) {
+      items.push({ pause: true, weight: 2.4 });
+      continue;
+    }
+    const syl = countSyllables(word);
+    for (let i = 0; i < syl; i++) {
+      items.push({ pause: false, weight: 1.0, accent: i === 0 ? 1.0 : 0.82 });
+      if (i < syl - 1) items.push({ pause: true, weight: 0.28 });
+    }
+    items.push({ pause: true, weight: 0.55 });
+  }
+  if (!items.length) return [];
+
+  const totalWeight = items.reduce((sum, it) => sum + it.weight, 0);
+  const usable = Math.max(300, durationMs - 140);
+  let t = 40;
+  const pulses = [];
+  for (const it of items) {
+    const slot = usable * it.weight / totalWeight;
+    if (!it.pause) {
+      const openMs = Math.max(70, Math.min(160, slot * 0.72));
+      const center = t + slot * 0.45;
+      pulses.push({
+        start: Math.max(0, center - openMs * 0.45),
+        peak: center,
+        end: center + openMs * 0.55,
+        amp: it.accent
+      });
+    }
+    t += slot;
+  }
+  return pulses;
+}
+
+function pulseValue(pulse, t) {
+  if (t < pulse.start || t > pulse.end) return 0;
+  if (t <= pulse.peak) return (t - pulse.start) / Math.max(1, pulse.peak - pulse.start);
+  return (pulse.end - t) / Math.max(1, pulse.end - pulse.peak);
+}
+
+function driveTextJaw(pulses, cmdHopMs, sourceStartTime, leadMs) {
+  let lastCmdIdx = -1;
+  ttsTimer = setInterval(() => {
+    if (!ttsRunning) return;
+    const elapsed = Math.max(0, (ttsCtx.currentTime - sourceStartTime) * 1000 + leadMs);
+    const cmdIdx = Math.floor(elapsed / cmdHopMs);
+    if (cmdIdx === lastCmdIdx) return;
+    lastCmdIdx = cmdIdx;
+
+    let amp = 0;
+    for (const p of pulses) {
+      if (elapsed >= p.start - cmdHopMs && elapsed <= p.end + cmdHopMs) {
+        amp = Math.max(amp, pulseValue(p, elapsed) * p.amp);
+      }
+    }
+
+    const gain = parseFloat(ttsSens.value);
+    const gate = parseFloat(ttsGate.value);
+    let target = Math.min(1, Math.pow(amp, 0.75) * gain * 0.65);
+    if (target < gate) target = 0;
+
+    fetch('/api/jaw', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ amplitude: target })
+    }).catch(() => {});
+  }, 20);
+}
+
+function driveAudioClockJaw(env, envHopMs, cmdHopMs, sourceStartTime, leadMs) {
+  let lastCmdIdx = -1;
+  let lastTarget = 0;
+  ttsTimer = setInterval(() => {
+    if (!ttsRunning || !ttsCtx) return;
+    const elapsed = Math.max(0, (ttsCtx.currentTime - sourceStartTime) * 1000 + leadMs);
+    const cmdIdx = Math.floor(elapsed / cmdHopMs);
+    if (cmdIdx === lastCmdIdx) return;
+    lastCmdIdx = cmdIdx;
+
+    const startEnv = Math.floor(elapsed / envHopMs);
+    if (startEnv >= env.length) { stopTts(); return; }
+
+    const span = Math.max(1, Math.round(cmdHopMs / envHopMs));
+    let peak = 0;
+    for (let k = startEnv; k < startEnv + span && k < env.length; k++) {
+      if (env[k] > peak) peak = env[k];
+    }
+
+    const gain = parseFloat(ttsSens.value);
+    const gate = parseFloat(ttsGate.value);
+    if (peak < gate) peak = 0;
+    else peak = (peak - gate) / Math.max(0.001, 1 - gate);
+    let target = Math.pow(peak, 0.7) * gain * 0.62;
+    target = Math.min(1, target);
+
+    // Fast open, faster close. This avoids the stuck-open look without
+    // throwing away actual fast speech changes from the waveform.
+    if (target > lastTarget) target = lastTarget * 0.15 + target * 0.85;
+    else target = lastTarget * 0.28 + target * 0.72;
+    if (target < 0.04) target = 0;
+    lastTarget = target;
+
+    fetch('/api/jaw', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ amplitude: target })
+    }).catch(() => {});
+  }, 15);
+}
+
+function driveJaw(env, envHopMs, cmdHopMs, sourceStartTime, leadMs) {
+  let lastCmdIdx = -1;
+  ttsTimer = setInterval(() => {
+    if (!ttsRunning) return;
+    const elapsed = Math.max(0, (ttsCtx.currentTime - sourceStartTime) * 1000 + leadMs);
+    const cmdIdx = Math.floor(elapsed / cmdHopMs);
+    if (cmdIdx === lastCmdIdx) return;
+    lastCmdIdx = cmdIdx;
+
+    // Look at the envelope window covered by THIS command interval.
+    // Take the PEAK in that window — the motor commits to a single target
+    // for the next ~60 ms, so we want it to express the loudest syllable
+    // moment in that interval (vowel center), not the average.
+    const startEnv = Math.floor(elapsed / envHopMs);
+    const span = Math.max(1, Math.round(cmdHopMs / envHopMs));
+    let peak = 0;
+    for (let k = startEnv; k < startEnv + span && k < env.length; k++) {
+      if (env[k] > peak) peak = env[k];
+    }
+    if (startEnv >= env.length) { stopTts(); return; }
+
+    const gain = parseFloat(ttsSens.value);
+    const gate = parseFloat(ttsGate.value);
+    if (peak < gate) peak = 0;
+    else peak = (peak - gate) / Math.max(0.001, 1 - gate);
+    let target = Math.pow(peak, 0.6) * gain;
+    target = Math.min(1, target);
+
+    fetch('/api/jaw', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ amplitude: target })
+    }).catch(() => {});
+  }, 20);
+}
+</script>
+</body>
+</html>

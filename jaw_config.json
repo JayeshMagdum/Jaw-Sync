@@ -1,0 +1,10 @@
+{
+  "motor_id": 1,
+  "jaw_open": 2393,
+  "jaw_close": 2900,
+  "jaw_home": 2900,
+  "speed": 1200,
+  "port": "COM5",
+  "gain_scale": 1.8,
+  "motor_lag_ms": 20
+}

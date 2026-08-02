@@ -1,0 +1,26 @@
+===============================================================================
+HARDCODED_WAV SYSTEM CONSTRAINTS & STABILITY DIRECTIVE
+===============================================================================
+
+STATUS & CONFIRMATION:
+The `hardocoded_wav` directory contains a fully functional, verified, and working 
+FAQ retrieval & audio matching system.
+
+STRICT CONSTRAINTS FOR AI & DEVELOPERS:
+1. DO NOT MODIFY OR ALTER SYSTEM LOGIC:
+   - You are NOT allowed to touch, modify, refactor, or delete any core logic files 
+     within `hardocoded_wav` (including but not limited to `app.py`, `mcad_keyword_matcher.py`, 
+     `mcad_query_normalizer.py`, `stt_engine.py`, or `mcad_solution_faq.csv`).
+   - The directory architecture, matching algorithm, STT pipeline, and file structure 
+     must remain strictly preserved.
+
+2. ALLOWED PARAMETER MODIFICATIONS:
+   - The ONLY parameters permitted to be adjusted are the playback / generation speed 
+     parameters (e.g., speed rate / tempo adjustments via phase-vocoder / librosa in 
+     `slow_play.py` or `slow_export.py`).
+
+3. WAV FILE GENERATION STANDARD:
+   - Any WAV audio file generation or adjustment MUST follow the exact same method 
+     and pipeline previously used inside `hardocoded_wav`.
+
+===============================================================================

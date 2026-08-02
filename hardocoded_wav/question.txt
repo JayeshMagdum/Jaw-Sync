@@ -1,0 +1,132 @@
+
+
+greeting
+  en : Hello! How can I help you?
+  hi : नमस्ते! मैं आपकी कैसे मदद कर सकता हूँ?
+  mr : नमस्कार! मी तुम्हाला कशी मदत करू शकतो?
+mr
+identity
+  en : What is your name? Who are you?
+  hi : आपका नाम क्या है?
+  mr : तुझे नाव काय आहे?
+--
+thanks
+  en : Thank you!
+  hi : धन्यवाद!
+  mr : धन्यवाद!
+
+bye
+  en : Bye!
+  hi : अलविदा!
+  mr : निघतो निघते!
+
+full_name
+  en : What is the full name of M CAD Solutions?
+  hi : M CAD Solutions का पूरा नाम क्या है?
+  mr : M CAD Solutions चे पूर्ण नाव काय आहे?
+mr/hi/en
+history
+  en : When was M CAD Solutions founded? Who founded it?
+  hi : M CAD Solutions की स्थापना कब हुई? किसने की?
+  mr : M CAD Solutions ची स्थापना कधी झाली? कोणी केली?
+mr/en
+founder
+  en : Who is the founder of M CAD Solutions?
+  hi : M CAD Solutions के संस्थापक कौन हैं?
+  mr : M CAD Solutions चे संस्थापक कोण आहेत?
+en/hi/
+location
+  en : Where is M CAD Solutions located?
+  hi : M CAD Solutions कहाँ स्थित है?
+  mr : M CAD Solutions चा पत्ता किंवा ठिकाण कुठे आहे?
+en/hi
+phone
+  en : What is the contact number of M CAD Solutions?
+  hi : M CAD Solutions का संपर्क नंबर क्या है?
+  mr : M CAD Solutions चा संपर्क क्रमांक काय आहे?
+hi/mr/en
+email
+  en : What is the email address of M CAD Solutions?
+  hi : M CAD Solutions का ईमेल क्या है?
+  mr : M CAD Solutions चा ईमेल काय आहे?
+
+timings
+  en : What are the working hours of M CAD Solutions?
+  hi : M CAD Solutions के कार्य समय क्या हैं?
+  mr : M CAD Solutions चे कामाचे तास काय आहेत?
+
+courses_offered
+  en : What courses does M CAD Solutions offer?
+  hi : M CAD Solutions कौन-कौन से कोर्स प्रदान करता है?
+  mr : M CAD Solutions कोणकोणते कोर्सेस देते?
+
+catia_course
+  en : Tell me about the CATIA V5 course.
+  hi : CATIA V5 कोर्स के बारे में बताएं।
+  mr : CATIA V5 कोर्सबद्दल सांगा.
+mr/en
+biw_course
+  en : What is the BIW Fixture Design course about?
+  hi : BIW फिक्सचर डिज़ाइन कोर्स क्या है?
+  mr : BIW फिक्स्चर डिझाईन कोर्स म्हणजे काय?
+
+interior_plastic_course
+  en : What is the Automotive Interior Plastic Trims course about?
+  hi : ऑटोमोटिव इंटीरियर प्लास्टिक ट्रिम्स कोर्स क्या है?
+  mr : ऑटोमोटिव्ह इंटीरियर प्लास्टिक ट्रिम्स कोर्स म्हणजे काय?
+
+solidworks_course
+  en : Tell me about the SolidWorks course.
+  hi : SolidWorks कोर्स के बारे में बताएं।
+  mr : SolidWorks कोर्सबद्दल सांगा.
+
+ugnx_course
+  en : Tell me about the UG NX course.
+  hi : UG NX कोर्स के बारे में बताएं।
+  mr : UG NX कोर्सबद्दल सांगा.
+mr/en
+industry4_program
+  en : What is the Industry 4.0 ROS2 Digital Twin program?
+  hi : इंडस्ट्री 4.0 ROS2 डिजिटल ट्विन प्रोग्राम क्या है?
+  mr : इंडस्ट्री 4.0 ROS2 डिजिटल ट्विन प्रोग्राम म्हणजे काय?
+
+placement_rate
+  en : What is the placement rate at M CAD Solutions?
+  hi : M CAD Solutions की प्लेसमेंट दर क्या है?
+  mr : M CAD Solutions चा प्लेसमेंट रेट किती आहे?
+
+placement_partners
+  en : Which companies hire from M CAD Solutions?
+  hi : M CAD Solutions से किन कंपनियों में प्लेसमेंट होता है?
+  mr : M CAD Solutions मधून कोणत्या कंपन्यांमध्ये प्लेसमेंट होते?
+
+placement_process
+  en : How does the placement process work?
+  hi : प्लेसमेंट प्रक्रिया कैसे काम करती है?
+  mr : प्लेसमेंट प्रक्रिया कशी चालते?
+
+why_choose
+  en : Why should I choose M CAD Solutions?
+  hi : मुझे M CAD Solutions क्यों चुनना चाहिए?
+  mr : मी M CAD Solutions का निवडावे?
+
+batch_size
+  en : What is the batch size for domain training courses?
+  hi : डोमेन ट्रेनिंग कोर्स के लिए बैच साइज़ क्या है?
+  mr : डोमेन ट्रेनिंग कोर्सेससाठी बॅच साईझ किती आहे?
+
+certificate
+  en : Will I get a certificate after completing the course?
+  hi : कोर्स पूरा करने के बाद क्या मुझे सर्टिफिकेट मिलेगा?
+  mr : कोर्स पूर्ण केल्यानंतर मला सर्टिफिकेट मिळेल का?
+
+mode_of_training
+  en : Do you offer online classes or only classroom training?
+  hi : क्या आप ऑनलाइन क्लासेस देते हैं या सिर्फ क्लासरूम ट्रेनिंग?
+  mr : तुम्ही ऑनलाइन क्लासेस देता की फक्त क्लासरूम ट्रेनिंग?
+
+contact_form
+  en : How can I enroll or book a free demo?
+  hi : मैं कोर्स में कैसे एनरोल करूं या फ्री डेमो कैसे बुक करूं?
+  mr : मी कोर्समध्ये कसे एनरोल होऊ किंवा फ्री डेमो कसा बुक करू?
+
