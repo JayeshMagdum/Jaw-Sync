@@ -488,9 +488,13 @@ print("[STT] Loading wake-word model (tiny)...")
 wake_model = _load_whisper_model("tiny", "wake-word")
 print("[STT] Wake-word model ready!")
 
-# ── Background mic thread ─────────────────────────────────────────────────
-_audio_queue  = queue.Queue()
-_mic_running  = threading.Event()
+# Pre-load the Hindi/Marathi medium model at startup to avoid first-query latency
+try:
+    _ensure_medium_loaded()
+except Exception as e:
+    print(f"[STT] Failed to pre-load medium model at startup: {e}")
+_audio_queue = queue.Queue()
+_mic_running = threading.Event()
 _mic_running.set()
 
 def _mic_callback(indata, frames, time_info, status):

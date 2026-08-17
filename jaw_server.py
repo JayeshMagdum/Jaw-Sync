@@ -121,11 +121,11 @@ def motor_write_reg(mid, reg, data_bytes):
     length = len(body) + 1
     pkt = [0xFF, 0xFF, mid, length] + body
     pkt.append(motor_checksum(pkt[2:]))
-    motor_serial.reset_input_buffer()
-    motor_serial.write(bytes(pkt))
-    motor_serial.flush()
-    time.sleep(0.01)
-    return motor_serial.read(20)
+    if not MOCK_MODE:
+        motor_serial.reset_input_buffer()
+        motor_serial.write(bytes(pkt))
+        # Removed flush/sleep/read so writes are fire-and-forget (0ms latency instead of 110ms)
+    return b""
 
 
 def motor_read_reg(mid, reg, n_bytes):
@@ -186,15 +186,28 @@ def motor_write_position(mid, position):
     return motor_write_reg(mid, ADDR_GOAL_POSITION, [position & 0xFF, (position >> 8) & 0xFF])
 
 
-_position_mode_ready = False
+# Tracks which motor_ids have been put into position mode.
+# /api/jaw and /api/position/<mid> compare against this before
+# deciding whether to call motor_set_position_mode() — skipping the 30-50ms
+# torque-disable → mode-set → torque-enable cycle when it's already set.
+_modes_applied = set()
+
+# Minimum seconds between consecutive /api/jaw serial dispatches.
+# Drops calls that arrive faster than the servo can execute to prevent
+# the lock queue from backing up and delivering stale positions to hardware.
+# 0.080 s = ~12.5 Hz max.
+# In MOCK mode this gate is bypassed so the dashboard stays responsive.
+_JAW_MIN_INTERVAL_S: float = 0.080
+_last_jaw_dispatch: float = 0.0
+_last_jaw_pos: int = 0
 
 
 def apply_startup_settings():
-    global _position_mode_ready
+    global _modes_applied
     with lock:
         motor_set_position_mode(cfg["motor_id"])
         motor_write_u16(cfg["motor_id"], ADDR_GOAL_SPEED, cfg["speed"])
-        _position_mode_ready = True
+        _modes_applied.add(cfg["motor_id"])
 
 
 apply_startup_settings()
@@ -203,10 +216,11 @@ apply_startup_settings()
 # ---------------------------------------------------------------------------
 # Flask app
 # ---------------------------------------------------------------------------
-
 app = Flask(__name__, static_folder=".")
 
-
+import logging
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
 @app.route("/")
 def index():
     return send_from_directory(".", "jaw_dashboard.html")
@@ -222,18 +236,41 @@ def get_config():
 
 @app.route("/api/config", methods=["POST"])
 def set_config():
+    global _mode_applied_for_id
     data = request.get_json(force=True)
     with config_lock:
         old_motor_id = cfg["motor_id"]
         for key in ("motor_id", "jaw_open", "jaw_close", "jaw_home", "speed"):
             if key in data:
                 cfg[key] = int(data[key])
+
+        # --- Calibration sanity checks ---
+        open_v = cfg["jaw_open"]
+        close_v = cfg["jaw_close"]
+        span = abs(close_v - open_v)
+        errors = []
+        if span < 50:
+            errors.append(f"jaw span too small ({span} ticks) — likely a calibration mistake")
+        if span > 1500:
+            errors.append(f"jaw span very large ({span} ticks) — risk of hitting mechanical stop")
+        if not (0 <= open_v <= 4095):
+            errors.append(f"jaw_open {open_v} out of range 0-4095")
+        if not (0 <= close_v <= 4095):
+            errors.append(f"jaw_close {close_v} out of range 0-4095")
+        if not (1 <= cfg["speed"] <= 4095):
+            errors.append(f"speed {cfg['speed']} out of range 1-4095")
+        if errors:
+            # Roll back in-memory changes so cfg stays consistent
+            cfg.update(load_config())
+            return jsonify({"error": errors}), 400
+
         save_config(cfg)
         new_cfg = dict(cfg)
 
     with lock:
-        if new_cfg["motor_id"] != old_motor_id:
+        if new_cfg["motor_id"] not in _modes_applied:
             motor_set_position_mode(new_cfg["motor_id"])
+            _modes_applied.add(new_cfg["motor_id"])
         motor_write_u16(new_cfg["motor_id"], ADDR_GOAL_SPEED, new_cfg["speed"])
 
     return jsonify(new_cfg)
@@ -259,8 +296,27 @@ def set_position():
     pos = int(data.get("position", cfg["jaw_close"]))
     pos = max(0, min(4095, pos))
     with lock:
+        if mid not in _modes_applied:
+            motor_set_position_mode(mid)
+            _modes_applied.add(mid)
         motor_write_position(mid, pos)
     print(f"[pos] → {pos}", flush=True)
+    return jsonify({"id": mid, "goal": pos})
+
+
+@app.route("/api/position/<int:mid>", methods=["POST"])
+def set_position_mid(mid):
+    data = request.get_json(force=True)
+    pos = int(data.get("position", 2048))
+    pos = max(0, min(4095, pos))
+    speed = int(data.get("speed", 1000))
+    with lock:
+        if mid not in _modes_applied:
+            motor_set_position_mode(mid)
+            motor_write_u16(mid, ADDR_GOAL_SPEED, speed)
+            _modes_applied.add(mid)
+            print(f"[Motor {mid}] Initialized: position mode, speed={speed}", flush=True)
+        motor_write_position(mid, pos)
     return jsonify({"id": mid, "goal": pos})
 
 
@@ -268,6 +324,12 @@ def set_position():
 def torque(on):
     with config_lock:
         mid = cfg["motor_id"]
+    with lock:
+        motor_write_u8(mid, ADDR_TORQUE_ENABLE, 1 if on else 0)
+    return jsonify({"id": mid, "torque": bool(on)})
+
+@app.route("/api/torque/<int:mid>/<int:on>", methods=["POST"])
+def torque_mid(mid, on):
     with lock:
         motor_write_u8(mid, ADDR_TORQUE_ENABLE, 1 if on else 0)
     return jsonify({"id": mid, "torque": bool(on)})
@@ -304,18 +366,33 @@ def set_home_to_current():
 @app.route("/api/jaw", methods=["POST"])
 def jaw():
     """amplitude: 0.0 (closed) .. 1.0 (fully open)"""
+    global _modes_applied, _last_jaw_dispatch, _last_jaw_pos
     data = request.get_json(force=True)
     amp = float(data.get("amplitude", 0.0))
     amp = max(0.0, min(1.0, amp))
-    print(f"[jaw] amp={amp:.3f}", flush=True)
     with config_lock:
         mid = cfg["motor_id"]
         jaw_open = cfg["jaw_open"]
         jaw_close = cfg["jaw_close"]
     pos = int(round(jaw_close - amp * (jaw_close - jaw_open)))
+
+    # --- Rate gate (LIVE mode only) ---
+    # If the previous serial write hasn't had time to complete, drop this call
+    # rather than queueing it — stale positions delivered late cause stutter.
+    now = time.monotonic()
+    if not MOCK_MODE and (now - _last_jaw_dispatch) < _JAW_MIN_INTERVAL_S:
+        return jsonify({"amplitude": amp, "position": _last_jaw_pos, "rate_limited": True})
+
     with lock:
-        motor_set_position_mode(mid)
+        # Only re-apply mode if the motor_id hasn't been configured yet.
+        # Avoids the ~30-50ms torque-disable/re-enable cycle on every TTS word.
+        if mid not in _modes_applied:
+            motor_set_position_mode(mid)
+            _modes_applied.add(mid)
         motor_write_position(mid, pos)
+
+    _last_jaw_dispatch = time.monotonic()
+    _last_jaw_pos = pos
     return jsonify({"amplitude": amp, "position": pos})
 
 
@@ -379,4 +456,6 @@ def speak():
 
 
 if __name__ == "__main__":
+    print("[JawServer] Server started successfully!", flush=True)
+    print("[JawServer] Local host URL: http://127.0.0.1:5050", flush=True)
     app.run(host="0.0.0.0", port=5050, debug=False, threaded=True)

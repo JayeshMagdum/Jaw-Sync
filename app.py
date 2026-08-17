@@ -6,7 +6,7 @@ import time
 import urllib.error
 import urllib.request
 from flask import Flask, Response, jsonify, request, send_from_directory
-import scservo_sdk as scs
+
 import edge_tts
 import serial
 

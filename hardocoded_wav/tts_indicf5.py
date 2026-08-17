@@ -117,7 +117,7 @@ def _find_vocos_dir():
 
 def get_model():
     from f5_tts.model import DiT
-    from f5_tts.infer.utils_infer import load_model, load_checkpoint, load_vocoder
+    from f5_tts.infer.utils_infer import load_model, load_vocoder
 
     if not os.path.exists(CKPT_FILE):
         raise FileNotFoundError(
@@ -133,18 +133,16 @@ def get_model():
     print(f"[snapshot] {SNAPSHOT_DIR}")
     print(f"[ckpt] {CKPT_FILE}")
 
-    # Step 1: build the DiT architecture skeleton (random weights)
+    # load_model() now takes ckpt_path and handles checkpoint loading internally
     model = load_model(
         DiT,
         DIT_CONFIG,
+        CKPT_FILE,
         mel_spec_type="vocos",
         vocab_file=VOCAB_FILE,
+        use_ema=True,
         device=device,
     )
-
-    # Step 2: actually load the trained (prefix-fixed) weights.
-    # This is the exact step IndicF5's own AutoModel wrapper skips.
-    model = load_checkpoint(model, CKPT_FILE, device, use_ema=True)
 
     vocos_dir = _find_vocos_dir()
     if vocos_dir and os.path.exists(os.path.join(vocos_dir, "config.yaml")):

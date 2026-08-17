@@ -23,6 +23,13 @@ import numpy as np
 import soundfile as sf
 import sounddevice as sd
 
+try:
+    import urllib.request
+    import urllib.error
+    _HAS_URLLIB = True
+except ImportError:
+    _HAS_URLLIB = False
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, "jaw_config.json")
 
@@ -74,9 +81,11 @@ class JawSyncedPlayer:
         self.cfg = config if config else load_config()
         self.serial = None
         self.mock_mode = True
+        self._http_mode = False
+        self._http_base = None
         self.serial_lock = threading.Lock()
         self._playing = False
-        self._init_serial()
+        self._init_connection()
         self._register_shutdown_hooks()
 
     def _register_shutdown_hooks(self):
@@ -104,17 +113,64 @@ class JawSyncedPlayer:
         except Exception:
             pass
         try:
-            home = self.cfg.get("jaw_home", self.cfg.get("jaw_close", 3145))
-            self.set_position(home)
-            # Disable torque so motor is free if script crashes
-            mid = self.cfg.get("motor_id", 1)
-            if not self.mock_mode:
-                time.sleep(0.02)
-                self._write_reg(mid, ADDR_TORQUE_ENABLE, [0])
-                time.sleep(0.02)
-                self._write_reg(mid, ADDR_TORQUE_ENABLE, [1])
+            if self._http_mode:
+                self._http_jaw(0.0)
+            else:
+                home = self.cfg.get("jaw_home", self.cfg.get("jaw_close", 3145))
+                self.set_position(home)
+                # Disable torque so motor is free if script crashes
+                mid = self.cfg.get("motor_id", 1)
+                if not self.mock_mode:
+                    time.sleep(0.02)
+                    self._write_reg(mid, ADDR_TORQUE_ENABLE, [0])
+                    time.sleep(0.02)
+                    self._write_reg(mid, ADDR_TORQUE_ENABLE, [1])
         except Exception:
             pass
+
+    def _check_jaw_server(self, base_url="http://127.0.0.1:5050"):
+        """Check if jaw_server.py is running and reachable via HTTP."""
+        if not _HAS_URLLIB:
+            return False
+        try:
+            req = urllib.request.Request(f"{base_url}/api/config", method="GET")
+            with urllib.request.urlopen(req, timeout=1.0) as resp:
+                data = json.loads(resp.read().decode())
+                if "motor_id" in data:
+                    return True
+        except Exception:
+            pass
+        return False
+
+    def _http_jaw(self, amplitude):
+        """Send jaw amplitude command via jaw_server HTTP API."""
+        if not self._http_base:
+            return
+        try:
+            payload = json.dumps({"amplitude": float(amplitude)}).encode()
+            req = urllib.request.Request(
+                f"{self._http_base}/api/jaw",
+                data=payload,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            urllib.request.urlopen(req, timeout=0.5)
+        except Exception:
+            pass
+
+    def _init_connection(self):
+        """Try jaw_server HTTP API first; fall back to direct serial."""
+        server_url = self.cfg.get("jaw_server_url", "http://127.0.0.1:5050")
+        if self._check_jaw_server(server_url):
+            self._http_mode = True
+            self._http_base = server_url
+            self.mock_mode = False
+            self.serial = MockSerial()  # placeholder, not used in HTTP mode
+            print(f"[JawPlayer] Connected to jaw_server at {server_url} (HTTP mode — serial managed by server).")
+            return
+
+        # No server running — try direct serial as before
+        self._init_serial()
 
     def _init_serial(self):
         try:
@@ -207,6 +263,9 @@ class JawSyncedPlayer:
         amplitude: 0.0 (fully closed) .. 1.0 (fully open)
         """
         amp = max(0.0, min(1.0, float(amplitude)))
+        if self._http_mode:
+            self._http_jaw(amp)
+            return
         j_open = self.cfg.get("jaw_open", 2288)
         j_close = self.cfg.get("jaw_close", 3145)
         pos = int(round(j_close - amp * (j_close - j_open)))
